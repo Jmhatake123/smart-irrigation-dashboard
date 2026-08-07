@@ -214,8 +214,10 @@ function setElementText(id, value) {
    command; ESP32 #1 validates the system state and sends approved work to ESP32 #2.
    ========================================================================== */
 let db = null;
+let auth = null;
 let liveData = {};
 let firebaseReady = false;
+let databaseListenersAttached = false;
 
 function setConnection(connected, label) {
     const dot = document.getElementById("connectionDot");
@@ -233,8 +235,32 @@ function initializeFirebase() {
     try {
         if (!firebase.apps.length) firebase.initializeApp(config);
         db = firebase.database();
+        auth = firebase.auth();
         firebaseReady = true;
-        setConnection(true, "Connecting to Firebase…");
+        auth.onAuthStateChanged(user => {
+            const loginScreen = document.getElementById("loginScreen");
+            const logoutButton = document.getElementById("logoutBtn");
+            if (!user) {
+                if (loginScreen) loginScreen.hidden = false;
+                if (logoutButton) logoutButton.hidden = true;
+                setConnection(false, "Sign in required");
+                return;
+            }
+            if (loginScreen) loginScreen.hidden = true;
+            if (logoutButton) logoutButton.hidden = false;
+            attachDatabaseListeners();
+        });
+    } catch (error) {
+        console.error(error);
+        setConnection(false, "Firebase setup failed");
+    }
+}
+
+function attachDatabaseListeners() {
+    if (databaseListenersAttached) return;
+    databaseListenersAttached = true;
+    setConnection(true, "Connecting to Firebase…");
+    try {
         db.ref("irrigation/live").on("value", snapshot => {
             liveData = snapshot.val() || {};
             updateDashboard();
@@ -267,7 +293,7 @@ function writeZoneProfile(zone) {
 }
 
 function queueCommand(type, payload = {}) {
-    if (!firebaseReady) return alert("Firebase is not configured. Complete firebase-config.js first.");
+    if (!firebaseReady || !auth?.currentUser) return alert("Sign in before sending a command.");
     const command = {
         type, payload, status: "queued", source: "dashboard",
         requestedAt: firebase.database.ServerValue.TIMESTAMP
@@ -276,6 +302,27 @@ function queueCommand(type, payload = {}) {
         .then(() => alert(`Command queued: ${type}. The ESP32 must validate and acknowledge it before anything moves.`))
         .catch(error => alert(`Could not queue command: ${error.message}`));
 }
+
+const loginForm = document.getElementById("loginForm");
+if (loginForm) loginForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const errorBox = document.getElementById("loginError");
+    if (!auth) { if (errorBox) errorBox.textContent = "Firebase is not configured."; return; }
+    if (errorBox) errorBox.textContent = "";
+    try {
+        await auth.signInWithEmailAndPassword(
+            document.getElementById("loginEmail").value.trim(),
+            document.getElementById("loginPassword").value
+        );
+        loginForm.reset();
+    } catch (error) {
+        if (errorBox) errorBox.textContent = "Sign-in failed. Check your email and password.";
+        console.error(error);
+    }
+});
+
+const logoutButton = document.getElementById("logoutBtn");
+if (logoutButton) logoutButton.addEventListener("click", () => auth?.signOut());
 
 function value(path, fallback = null) {
     return path.split(".").reduce((current, key) => current?.[key], liveData) ?? fallback;

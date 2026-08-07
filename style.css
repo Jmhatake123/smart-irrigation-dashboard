@@ -31,6 +31,17 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 body { background-color: var(--bg-primary); color: var(--text-main); display: flex; min-height: 100vh; }
 
+.login-screen { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--bg-primary); }
+.login-screen[hidden] { display: none; }
+.login-card { width: min(100%, 380px); display: flex; flex-direction: column; gap: 10px; padding: 30px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary); box-shadow: var(--card-shadow); }
+.login-card h1 { color: var(--accent-color); font-size: 1.6rem; }
+.login-card p, .login-card small { color: var(--text-muted); line-height: 1.4; }
+.login-card label { font-size: .85rem; font-weight: 700; margin-top: 6px; }
+.login-card input { width: 100%; padding: 11px; border-radius: 7px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-main); }
+.login-card button { margin-top: 8px; background: var(--accent-color); border: 0; color: #fff; }
+.login-error { min-height: 1.2em; color: var(--danger) !important; font-size: .85rem; }
+.logout-btn { padding: 8px 14px; }
+
 .sidebar { width: 260px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; position: fixed; height: 100vh; left: 0; top: 0; z-index: 100; }
 .sidebar h2 { font-size: 1.5rem; color: var(--accent-color); margin-bottom: 30px; }
 .sidebar ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
