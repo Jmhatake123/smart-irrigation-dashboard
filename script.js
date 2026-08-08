@@ -441,15 +441,12 @@ if (themeToggleBtn) {
 }
 
 function toggleDeviceState(elementId, pumpKey) {
-    const active = Boolean(value(`actuators.${pumpKey}Running`, false));
-    queueCommand(active ? "STOP_PUMP" : "START_PUMP", { pump: pumpKey });
+    queueCommand("RUN_PUMP_TEST", { pump: pumpKey });
 }
 
 if (document.getElementById("transferPumpBtn")) document.getElementById("transferPumpBtn").addEventListener("click", () => toggleDeviceState("transferPumpStatus", "transfer"));
 if (document.getElementById("boosterPumpBtn")) document.getElementById("boosterPumpBtn").addEventListener("click", () => toggleDeviceState("boosterPumpStatus", "booster"));
-if (document.getElementById("mixerBtn")) document.getElementById("mixerBtn").addEventListener("click", () => queueCommand("TOGGLE_MIXER"));
-if (document.getElementById("nutrientPumpBtn")) document.getElementById("nutrientPumpBtn").addEventListener("click", () => queueCommand("MANUAL_NUTRIENT_DOSE"));
-if (document.getElementById("valveBtn")) document.getElementById("valveBtn").addEventListener("click", () => queueCommand("CYCLE_DISTRIBUTION_VALVES"));
+if (document.getElementById("mixerBtn")) document.getElementById("mixerBtn").addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "mixer" }));
 
 if (document.getElementById("emergencyStop")) {
     document.getElementById("emergencyStop").addEventListener("click", () => {
