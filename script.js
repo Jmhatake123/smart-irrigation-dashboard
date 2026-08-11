@@ -85,7 +85,7 @@ function renderZonesUI() {
 
         block.innerHTML = `
             <div class="zone-header">
-                <h3>📍 ${zone.name}</h3>
+                <h3>Physical Zone ${zone.id}: ${zone.name}</h3>
                 <div class="zone-selectors">
                     <select id="cropSelect${zone.id}" onchange="syncZoneProfile('${zone.id}')">
                         <option value="pechay" ${zone.defaultCrop==='pechay'?'selected':''}>Pechay</option>
@@ -105,7 +105,6 @@ function renderZonesUI() {
                         <option value="flowering" ${zone.defaultStage==='flowering'?'selected':''}>Flowering</option>
                         <option value="fruiting" ${zone.defaultStage==='fruiting'?'selected':''}>Fruiting</option>
                     </select>
-                    <button class="delete-zone-btn" onclick="deleteZone('${zone.id}')">🗑️ Remove</button>
                 </div>
             </div>
 
@@ -137,27 +136,8 @@ function renderZonesUI() {
 /* ==========================================================================
    DOM OPERATIONS & ZONE SELECTION PERSISTENCE
    ========================================================================== */
-document.getElementById("addZoneBtn").addEventListener("click", () => {
-    const inputField = document.getElementById("newZoneName");
-    const nameText = inputField.value.trim();
-    if (nameText === "") return alert("Please enter a valid label name.");
-
-    const uniqueId = "Z" + Date.now().toString().slice(-4); 
-    activeZones.push({ id: uniqueId, name: nameText.toUpperCase(), defaultCrop: "pechay", defaultStage: "seedling" });
-    writeZoneProfile(activeZones[activeZones.length - 1]);
-    inputField.value = "";
-    renderZonesUI();
-    updateDashboard();
-});
-
-function deleteZone(zoneId) {
-    if(confirm("Remove this configuration matrix?")) {
-        activeZones = activeZones.filter(z => z.id !== zoneId);
-        if (firebaseReady) db.ref(`irrigation/config/zones/${zoneId}`).remove();
-        renderZonesUI();
-        updateDashboard();
-    }
-}
+// A/B/C are physical ESP1 sensor/valve identifiers. They must never be deleted,
+// renamed to a generated ID, or expanded beyond three dashboard profiles.
 
 function syncZoneProfile(zoneId) {
     const cropSelect = document.getElementById(`cropSelect${zoneId}`);
@@ -218,6 +198,31 @@ let auth = null;
 let liveData = {};
 let firebaseReady = false;
 let databaseListenersAttached = false;
+let lastCommandAt = 0;
+const COMMAND_COOLDOWN_MS = 10000;
+
+function deviceIsFresh() {
+    const updatedAt = Number(liveData.meta?.updatedAt || 0);
+    // ESP1 publishes its current cadence (20 s while active, 60 s while idle).
+    // Leave two upload periods for Wi-Fi/TLS recovery, but do not allow a stale
+    // browser session to queue actuator tests as if the controller were online.
+    const refreshMs = Number(liveData.meta?.refreshMs || 60000);
+    return Boolean(updatedAt) && Date.now() - updatedAt < Math.max(refreshMs * 2 + 15000, 90000);
+}
+
+function syncControlAvailability() {
+    const enabled = Boolean(auth?.currentUser) && deviceIsFresh();
+    ["transferPumpBtn", "boosterPumpBtn", "mixerBtn", "emergencyStop"].forEach(id => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.disabled = !enabled;
+        button.title = enabled ? "" : "ESP1 is offline or its live status is stale.";
+    });
+    document.querySelectorAll("#forcedRunForm input, #forcedRunForm select, #forcedRunForm button, .valveRequest").forEach(control => {
+        control.disabled = !enabled;
+        control.title = enabled ? "" : "ESP1 is offline or its live status is stale.";
+    });
+}
 
 function setConnection(connected, label) {
     const dot = document.getElementById("connectionDot");
@@ -244,6 +249,7 @@ function initializeFirebase() {
                 if (loginScreen) loginScreen.hidden = false;
                 if (logoutButton) logoutButton.hidden = true;
                 setConnection(false, "Sign in required");
+                syncControlAvailability();
                 return;
             }
             if (loginScreen) loginScreen.hidden = true;
@@ -264,17 +270,17 @@ function attachDatabaseListeners() {
         db.ref("irrigation/live").on("value", snapshot => {
             liveData = snapshot.val() || {};
             updateDashboard();
-            const lastSeen = Number(liveData.meta?.updatedAt || 0);
-            const fresh = lastSeen && Date.now() - lastSeen < 90000;
+            const fresh = deviceIsFresh();
             setConnection(fresh, fresh ? "Live system connected" : "Waiting for ESP32 data");
+            syncControlAvailability();
         }, error => setConnection(false, `Database error: ${error.code || "unknown"}`));
         db.ref("irrigation/config/zones").once("value").then(snapshot => {
             const saved = snapshot.val();
             if (!saved) return;
-            activeZones = Object.entries(saved).map(([id, zone]) => ({
-                id, name: zone.name || `SOIL ZONE ${id}`,
-                defaultCrop: zone.crop || "pechay", defaultStage: zone.stage || "seedling"
-            }));
+            activeZones = ["A", "B", "C"].map(id => {
+                const zone = saved[id] || {};
+                return { id, name: zone.name || `ZONE ${id}`, defaultCrop: zone.crop || "pechay", defaultStage: zone.stage || "seedling" };
+            });
             renderZonesUI();
             updateDashboard();
         });
@@ -294,13 +300,17 @@ function writeZoneProfile(zone) {
 
 function queueCommand(type, payload = {}) {
     if (!firebaseReady || !auth?.currentUser) return alert("Sign in before sending a command.");
+    if (!deviceIsFresh()) return alert("ESP1 is offline or its live status is stale. No command was sent.");
+    const remaining = COMMAND_COOLDOWN_MS - (Date.now() - lastCommandAt);
+    if (remaining > 0) return alert(`Please wait ${Math.ceil(remaining / 1000)} seconds before sending another command.`);
+    lastCommandAt = Date.now();
     const command = {
         type, payload, status: "queued", source: "dashboard",
         requestedAt: firebase.database.ServerValue.TIMESTAMP
     };
     return db.ref("irrigation/commands").push(command)
         .then(() => alert(`Command queued: ${type}. The ESP32 must validate and acknowledge it before anything moves.`))
-        .catch(error => alert(`Could not queue command: ${error.message}`));
+        .catch(error => { lastCommandAt = 0; alert(`Could not queue command: ${error.message}`); });
 }
 
 const loginForm = document.getElementById("loginForm");
@@ -315,6 +325,7 @@ if (loginForm) loginForm.addEventListener("submit", async event => {
             document.getElementById("loginPassword").value
         );
         loginForm.reset();
+        syncControlAvailability();
     } catch (error) {
         if (errorBox) errorBox.textContent = "Sign-in failed. Check your email and password.";
         console.error(error);
@@ -389,6 +400,14 @@ function updateDashboard() {
     setElementText("voltage", sensors.batteryVoltage == null ? "--" : `${Number(sensors.batteryVoltage).toFixed(2)} V`);
     setElementText("powerSource", system.powerSource || "--");
     setElementText("systemState", system.state || "OFFLINE");
+    setElementText("nutrientSystemIndicator", deviceIsFresh() ? (system.masterWorkOrderActive ? "ACTIVE" : "BALANCED") : "WAITING");
+    setElementText("sensorArrayIndicator", deviceIsFresh() ? "SAMPLING LIVE" : "WAITING");
+    setElementText("diagOnline", deviceIsFresh() ? "ONLINE" : "WAITING FOR ESP1");
+    setElementText("diagState", system.state || "--");
+    setElementText("diagTank", `Reservoir: ${sensors.reservoirLevel ?? "--"}% / Mix: ${sensors.mixingLevel ?? "--"}%`);
+    setElementText("diagAir", `Temp: ${sensors.temperature ?? "--"} C / Humidity: ${sensors.humidity ?? "--"}% / Light: ${sensors.lightLevel ?? "--"}`);
+    setElementText("diagBattery", `${sensors.batteryVoltage ?? "--"} V`);
+    setElementText("diagSoil", ["A", "B", "C"].map(id => `${id}: ${sensors.zones?.[id]?.moisture ?? "--"}%`).join(" | "));
     const transferOn = Boolean(actuators.transferRunning), boosterOn = Boolean(actuators.boosterRunning);
     const transferStatus = document.getElementById("transferPumpStatus"), boosterStatus = document.getElementById("boosterPumpStatus");
     if (transferStatus) { transferStatus.className = `device-status ${transferOn ? "active" : "off"}`; transferStatus.innerText = transferOn ? "ON" : "OFF"; }
@@ -422,6 +441,7 @@ function updateDashboard() {
             }
         }
     });
+    syncControlAvailability();
 }
 
 /* ==========================================================================
@@ -445,8 +465,25 @@ function toggleDeviceState(elementId, pumpKey) {
 }
 
 if (document.getElementById("transferPumpBtn")) document.getElementById("transferPumpBtn").addEventListener("click", () => toggleDeviceState("transferPumpStatus", "transfer"));
-if (document.getElementById("boosterPumpBtn")) document.getElementById("boosterPumpBtn").addEventListener("click", () => toggleDeviceState("boosterPumpStatus", "booster"));
+if (document.getElementById("boosterPumpBtn")) document.getElementById("boosterPumpBtn").addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "booster", zone: document.getElementById("boosterZone").value }));
 if (document.getElementById("mixerBtn")) document.getElementById("mixerBtn").addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "mixer" }));
+
+document.querySelectorAll(".valveRequest").forEach(button => button.addEventListener("click", () => {
+    queueCommand("MANUAL_VALVE_REQUEST", { zone: button.dataset.zone });
+}));
+
+const forcedRunForm = document.getElementById("forcedRunForm");
+if (forcedRunForm) forcedRunForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const liters = Number(document.getElementById("waterLiters").value);
+    const seconds = Number(document.getElementById("runSeconds").value);
+    if (!(liters > 0 && liters <= 50) || !(seconds > 0 && seconds <= 7200)) return alert("Water must be 0.1–50 L and run duration must be 1–7200 seconds.");
+    queueCommand(document.getElementById("forcedType").value, {
+        zones: document.getElementById("forcedZones").value, waterLiters: liters,
+        nutrientsMl: { a: Number(document.getElementById("nutrientA").value), b: Number(document.getElementById("nutrientB").value), c: Number(document.getElementById("nutrientC").value) },
+        mixSeconds: Number(document.getElementById("mixSeconds").value), runSeconds: seconds
+    });
+});
 
 if (document.getElementById("emergencyStop")) {
     document.getElementById("emergencyStop").addEventListener("click", () => {
@@ -454,7 +491,16 @@ if (document.getElementById("emergencyStop")) {
     });
 }
 
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active", item === tab));
+    document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === tab.dataset.view));
+}));
+const contributorsDialog = document.getElementById("contributorsDialog");
+document.getElementById("contributorsBtn")?.addEventListener("click", () => contributorsDialog.showModal());
+contributorsDialog?.querySelector(".closeDialog")?.addEventListener("click", () => contributorsDialog.close());
+
 // Initialization Hooks
 renderZonesUI();
 updateDashboard();
+syncControlAvailability();
 initializeFirebase();
