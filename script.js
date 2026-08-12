@@ -1,506 +1,616 @@
-/* ==========================
-   PHILIPPINE CROP DATABASE
-========================== */
+/*
+ * Dashboard contract
+ * ------------------
+ * irrigation/live     ESP1 -> dashboard (latest verified snapshot)
+ * irrigation/config   dashboard-only zone profile notes (ESP1 does not read these)
+ * irrigation/commands dashboard -> ESP1 (ESP1 validates every supported command)
+ *
+ * This page deliberately does not create a relay, valve, forced-run, or destination
+ * command unless the active ESP1 firmware exposes that exact safe command contract.
+ */
+
 const cropDatabase = {
-    pechay: {
-        seedling: { n: 70, p: 35, k: 110, ph: "6.0", ec: "1.0", moisture: "65%" },
-        vegetative: { n: 140, p: 50, k: 210, ph: "6.5", ec: "1.5", moisture: "75%" }
-    },
-    kangkong: {
-        seedling: { n: 60, p: 30, k: 100, ph: "5.5", ec: "0.8", moisture: "75%" },
-        vegetative: { n: 150, p: 45, k: 220, ph: "6.0", ec: "1.2", moisture: "85%" }
-    },
-    sitaw: {
-        seedling: { n: 50, p: 40, k: 90, ph: "6.0", ec: "1.0", moisture: "60%" },
-        vegetative: { n: 100, p: 60, k: 160, ph: "6.2", ec: "1.4", moisture: "70%" },
-        flowering: { n: 90, p: 80, k: 200, ph: "6.5", ec: "1.8", moisture: "75%" }
-    },
-    talong: {
-        seedling: { n: 100, p: 40, k: 110, ph: "5.8", ec: "1.2", moisture: "65%" },
-        vegetative: { n: 190, p: 55, k: 210, ph: "6.2", ec: "2.0", moisture: "70%" },
-        flowering: { n: 160, p: 65, k: 260, ph: "6.4", ec: "2.2", moisture: "75%" },
-        fruiting: { n: 140, p: 70, k: 300, ph: "6.5", ec: "2.4", moisture: "80%" }
-    },
-    silinglabuyo: {
-        seedling: { n: 90, p: 40, k: 110, ph: "5.8", ec: "1.0", moisture: "65%" },
-        vegetative: { n: 170, p: 50, k: 210, ph: "6.2", ec: "1.8", moisture: "70%" },
-        flowering: { n: 130, p: 65, k: 250, ph: "6.3", ec: "2.0", moisture: "75%" },
-        fruiting: { n: 110, p: 70, k: 290, ph: "6.5", ec: "2.2", moisture: "75%" }
-    },
-    kamatis: {
-        seedling: { n: 120, p: 50, k: 100, ph: "5.8", ec: "1.2", moisture: "65%" },
-        vegetative: { n: 220, p: 60, k: 180, ph: "6.0", ec: "2.0", moisture: "70%" },
-        flowering: { n: 180, p: 70, k: 250, ph: "6.2", ec: "2.5", moisture: "75%" },
-        fruiting: { n: 160, p: 70, k: 300, ph: "6.5", ec: "2.5", moisture: "80%" }
-    },
-    ampalaya: {
-        seedling: { n: 90, p: 50, k: 120, ph: "6.0", ec: "1.2", moisture: "65%" },
-        vegetative: { n: 180, p: 60, k: 220, ph: "6.2", ec: "1.8", moisture: "70%" },
-        flowering: { n: 150, p: 75, k: 260, ph: "6.5", ec: "2.2", moisture: "75%" },
-        fruiting: { n: 130, p: 80, k: 310, ph: "6.6", ec: "2.4", moisture: "75%" }
-    },
-    kalamansi: {
-        seedling: { n: 100, p: 30, k: 90, ph: "5.5", ec: "1.0", moisture: "60%" },
-        vegetative: { n: 180, p: 50, k: 180, ph: "5.8", ec: "1.5", moisture: "65%" },
-        flowering: { n: 150, p: 70, k: 220, ph: "6.0", ec: "2.0", moisture: "70%" },
-        fruiting: { n: 120, p: 60, k: 280, ph: "6.2", ec: "2.2", moisture: "70%" }
-    },
-    strawberry: {
-        seedling: { n: 70, p: 40, k: 90, ph: "5.5", ec: "1.0", moisture: "60%" },
-        vegetative: { n: 130, p: 50, k: 180, ph: "5.6", ec: "1.5", moisture: "65%" },
-        flowering: { n: 110, p: 60, k: 220, ph: "5.8", ec: "1.8", moisture: "70%" },
-        fruiting: { n: 90, p: 60, k: 260, ph: "6.0", ec: "2.0", moisture: "70%" }
-    },
-    basil: {
-        seedling: { n: 60, p: 30, k: 100, ph: "5.5", ec: "0.8", moisture: "60%" },
-        vegetative: { n: 140, p: 45, k: 210, ph: "6.0", ec: "1.4", moisture: "70%" }
-    }
+  pechay: { seedling: { n: 70, p: 35, k: 110, ph: 6.0, ec: 1.0, moisture: 65 }, vegetative: { n: 140, p: 50, k: 210, ph: 6.5, ec: 1.5, moisture: 75 } },
+  kangkong: { seedling: { n: 60, p: 30, k: 100, ph: 5.5, ec: 0.8, moisture: 75 }, vegetative: { n: 150, p: 45, k: 220, ph: 6.0, ec: 1.2, moisture: 85 } },
+  sitaw: { seedling: { n: 50, p: 40, k: 90, ph: 6.0, ec: 1.0, moisture: 60 }, vegetative: { n: 100, p: 60, k: 160, ph: 6.2, ec: 1.4, moisture: 70 }, flowering: { n: 90, p: 80, k: 200, ph: 6.5, ec: 1.8, moisture: 75 } },
+  talong: { seedling: { n: 100, p: 40, k: 110, ph: 5.8, ec: 1.2, moisture: 65 }, vegetative: { n: 190, p: 55, k: 210, ph: 6.2, ec: 2.0, moisture: 70 }, flowering: { n: 160, p: 65, k: 260, ph: 6.4, ec: 2.2, moisture: 75 }, fruiting: { n: 140, p: 70, k: 300, ph: 6.5, ec: 2.4, moisture: 80 } },
+  silinglabuyo: { seedling: { n: 90, p: 40, k: 110, ph: 5.8, ec: 1.0, moisture: 65 }, vegetative: { n: 170, p: 50, k: 220, ph: 6.2, ec: 1.8, moisture: 70 }, flowering: { n: 130, p: 65, k: 250, ph: 6.3, ec: 1.8, moisture: 75 }, fruiting: { n: 110, p: 65, k: 290, ph: 6.5, ec: 2.2, moisture: 80 } },
+  kamatis: { seedling: { n: 120, p: 50, k: 100, ph: 5.8, ec: 1.2, moisture: 65 }, vegetative: { n: 220, p: 60, k: 180, ph: 6.0, ec: 2.0, moisture: 70 }, flowering: { n: 180, p: 70, k: 250, ph: 6.2, ec: 2.5, moisture: 75 }, fruiting: { n: 160, p: 70, k: 300, ph: 6.5, ec: 2.5, moisture: 80 } },
+  basil: { seedling: { n: 60, p: 30, k: 90, ph: 5.5, ec: 0.8, moisture: 60 }, vegetative: { n: 140, p: 45, k: 210, ph: 6.0, ec: 1.4, moisture: 70 } }
 };
 
 const readableCropNames = {
-    pechay: "Pechay", kangkong: "Kangkong", sitaw: "Sitaw", talong: "Talong",
-    silinglabuyo: "Siling Labuyo", kamatis: "Kamatis", ampalaya: "Ampalaya",
-    kalamansi: "Kalamansi", strawberry: "Strawberry", basil: "Basil"
+  pechay: "Pechay", kangkong: "Kangkong", sitaw: "Sitaw", talong: "Talong",
+  silinglabuyo: "Siling Labuyo", kamatis: "Kamatis", basil: "Basil"
 };
 
-/* ==========================================================================
-   DYNAMIC TRACKER STATE CONTAINER
-   ========================================================================== */
 let activeZones = [
-    { id: "A", name: "SOIL ZONE A (Precise Node 01)", defaultCrop: "talong", defaultStage: "vegetative" },
-    { id: "B", name: "SOIL ZONE B (Precise Node 02)", defaultCrop: "pechay", defaultStage: "vegetative" },
-    { id: "C", name: "SOIL ZONE C (Precise Node 03)", defaultCrop: "kamatis", defaultStage: "fruiting" }
+  { id: "A", name: "SOIL ZONE A (Precise Node 01)", defaultCrop: "talong", defaultStage: "vegetative" },
+  { id: "B", name: "SOIL ZONE B (Precise Node 02)", defaultCrop: "pechay", defaultStage: "vegetative" },
+  { id: "C", name: "SOIL ZONE C (Precise Node 03)", defaultCrop: "kamatis", defaultStage: "fruiting" }
 ];
 
-const container = document.getElementById("dynamic-zones-container");
-
-function renderZonesUI() {
-    if (!container) return;
-    container.innerHTML = "";
-
-    activeZones.forEach(zone => {
-        const block = document.createElement("div");
-        block.className = `zone-block`;
-        block.id = `zoneBlock-${zone.id}`;
-
-        block.innerHTML = `
-            <div class="zone-header">
-                <h3>Physical Zone ${zone.id}: ${zone.name}</h3>
-                <div class="zone-selectors">
-                    <select id="cropSelect${zone.id}" onchange="syncZoneProfile('${zone.id}')">
-                        <option value="pechay" ${zone.defaultCrop==='pechay'?'selected':''}>Pechay</option>
-                        <option value="kangkong" ${zone.defaultCrop==='kangkong'?'selected':''}>Kangkong</option>
-                        <option value="sitaw" ${zone.defaultCrop==='sitaw'?'selected':''}>Sitaw</option>
-                        <option value="talong" ${zone.defaultCrop==='talong'?'selected':''}>Talong</option>
-                        <option value="silinglabuyo" ${zone.defaultCrop==='silinglabuyo'?'selected':''}>Siling Labuyo</option>
-                        <option value="kamatis" ${zone.defaultCrop==='kamatis'?'selected':''}>Kamatis</option>
-                        <option value="ampalaya" ${zone.defaultCrop==='ampalaya'?'selected':''}>Ampalaya</option>
-                        <option value="kalamansi" ${zone.defaultCrop==='kalamansi'?'selected':''}>Kalamansi</option>
-                        <option value="strawberry" ${zone.defaultCrop==='strawberry'?'selected':''}>Strawberry</option>
-                        <option value="basil" ${zone.defaultCrop==='basil'?'selected':''}>Basil</option>
-                    </select>
-                    <select id="growthStage${zone.id}" onchange="syncZoneProfile('${zone.id}')">
-                        <option value="seedling" ${zone.defaultStage==='seedling'?'selected':''}>Seedling</option>
-                        <option value="vegetative" ${zone.defaultStage==='vegetative'?'selected':''}>Vegetative</option>
-                        <option value="flowering" ${zone.defaultStage==='flowering'?'selected':''}>Flowering</option>
-                        <option value="fruiting" ${zone.defaultStage==='fruiting'?'selected':''}>Fruiting</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="card-grid matrix-grid">
-                <div class="card matrix-card"><h3>Nitrogen</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="nitrogen${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetN${zone.id}" class="target-val">--</p></div></div></div>
-                <div class="card matrix-card"><h3>Phosphorus</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="phosphorus${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetP${zone.id}" class="target-val">--</p></div></div></div>
-                <div class="card matrix-card"><h3>Potassium</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="potassium${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetK${zone.id}" class="target-val">--</p></div></div></div>
-                <div class="card matrix-card"><h3>Soil pH</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="soilPH${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetPH${zone.id}" class="target-val">--</p></div></div></div>
-                <div class="card matrix-card"><h3>Soil EC</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="soilEC${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetEC${zone.id}" class="target-val">--</p></div></div></div>
-                <div class="card matrix-card"><h3>Moisture</h3><div class="comparison-values"><div><span class="val-label">LIVE</span><p id="soil${zone.id}">--</p></div><div class="divider-line"></div><div><span class="val-label">TARGET</span><p id="targetMoisture${zone.id}" class="target-val">--</p></div></div></div>
-            </div>
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <div id="recommendationBox${zone.id}" class="alert-box" style="flex:1; margin-top:0;">Synchronizing...</div>
-                
-                <div class="zone-valve-strip">
-                    <div class="sub-valve-indicator">
-                        <span>🚪 Distribution Solenoid [SV-${zone.id}]:</span>
-                        <b id="solenoidState-${zone.id}" style="color:var(--danger)">CLOSED</b>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.appendChild(block);
-        syncZoneProfile(zone.id);
-    });
-}
-
-/* ==========================================================================
-   DOM OPERATIONS & ZONE SELECTION PERSISTENCE
-   ========================================================================== */
-// A/B/C are physical ESP1 sensor/valve identifiers. They must never be deleted,
-// renamed to a generated ID, or expanded beyond three dashboard profiles.
-
-function syncZoneProfile(zoneId) {
-    const cropSelect = document.getElementById(`cropSelect${zoneId}`);
-    const growthStage = document.getElementById(`growthStage${zoneId}`);
-    if (!cropSelect || !growthStage) return;
-
-    const crop = cropSelect.value;
-    const availableStages = Object.keys(cropDatabase[crop]);
-
-    Array.from(growthStage.options).forEach(opt => {
-        if (availableStages.includes(opt.value)) {
-            opt.disabled = false; opt.style.opacity = "1";
-        } else {
-            opt.disabled = true; opt.style.opacity = "0.25";
-            if (growthStage.value === opt.value) growthStage.value = availableStages[0];
-        }
-    });
-
-    const activeStage = growthStage.value;
-    const data = cropDatabase[crop][activeStage];
-
-    if (data) {
-        setElementText(`targetN${zoneId}`, data.n + " ppm");
-        setElementText(`targetP${zoneId}`, data.p + " ppm");
-        setElementText(`targetK${zoneId}`, data.k + " ppm");
-        setElementText(`targetPH${zoneId}`, data.ph);
-        setElementText(`targetEC${zoneId}`, data.ec + " mS/cm");
-        setElementText(`targetMoisture${zoneId}`, data.moisture);
-
-        const recBox = document.getElementById(`recommendationBox${zoneId}`);
-        if (recBox) recBox.innerHTML = `🎯 <b>${readableCropNames[crop]} Targets:</b> NPK: ${data.n}-${data.p}-${data.k} | pH: ${data.ph}`;
-        
-        const zoneObj = activeZones.find(z => z.id === zoneId);
-        if (zoneObj) {
-            zoneObj.defaultCrop = crop; zoneObj.defaultStage = activeStage;
-            writeZoneProfile(zoneObj);
-        }
-    }
-}
-
-function setElementText(id, value) {
-    const el = document.getElementById(id); if (el) el.innerText = value;
-}
-
-/* ==========================================================================
-   FIREBASE REALTIME DATABASE BRIDGE
-
-   Database contract:
-     irrigation/live       ESP32 #1 -> dashboard (latest verified readings)
-     irrigation/config     dashboard -> ESP32 #1 (zone profiles)
-     irrigation/commands   dashboard -> ESP32 #1 (queued, acknowledged commands)
-
-   Important: this dashboard NEVER switches a relay itself. It only queues a
-   command; ESP32 #1 validates the system state and sends approved work to ESP32 #2.
-   ========================================================================== */
 let db = null;
 let auth = null;
 let liveData = {};
+let commandData = [];
 let firebaseReady = false;
 let databaseListenersAttached = false;
+let liveRef = null;
+let commandsRef = null;
 let lastCommandAt = 0;
 const COMMAND_COOLDOWN_MS = 10000;
 
-function deviceIsFresh() {
-    const updatedAt = Number(liveData.meta?.updatedAt || 0);
-    // ESP1 publishes its current cadence (20 s while active, 60 s while idle).
-    // Leave two upload periods for Wi-Fi/TLS recovery, but do not allow a stale
-    // browser session to queue actuator tests as if the controller were online.
-    const refreshMs = Number(liveData.meta?.refreshMs || 60000);
-    return Boolean(updatedAt) && Date.now() - updatedAt < Math.max(refreshMs * 2 + 15000, 90000);
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 }
 
-function syncControlAvailability() {
-    const enabled = Boolean(auth?.currentUser) && deviceIsFresh();
-    ["transferPumpBtn", "boosterPumpBtn", "mixerBtn", "emergencyStop"].forEach(id => {
-        const button = document.getElementById(id);
-        if (!button) return;
-        button.disabled = !enabled;
-        button.title = enabled ? "" : "ESP1 is offline or its live status is stale.";
-    });
-    document.querySelectorAll("#forcedRunForm input, #forcedRunForm select, #forcedRunForm button, .valveRequest").forEach(control => {
-        control.disabled = !enabled;
-        control.title = enabled ? "" : "ESP1 is offline or its live status is stale.";
-    });
+function setText(id, text) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = text;
+}
+
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== "" && !Number.isNaN(Number(value));
+}
+
+function numberText(value, digits = 1, unit = "") {
+  if (!hasValue(value)) return "Unavailable";
+  return `${Number(value).toFixed(digits)}${unit ? ` ${unit}` : ""}`;
+}
+
+function rawText(value, fallback = "Unavailable") {
+  return value === undefined || value === null || value === "" ? fallback : String(value);
+}
+
+function booleanText(value, yes = "OK", no = "Not OK") {
+  if (value === undefined || value === null) return "Unavailable";
+  return value ? yes : no;
+}
+
+function formatAge(milliseconds) {
+  const age = Number(milliseconds);
+  if (!Number.isFinite(age) || age < 0 || age === 0xFFFFFFFF) return "Unavailable";
+  if (age < 1000) return "under 1 second";
+  if (age < 60000) return `${Math.floor(age / 1000)} seconds`;
+  if (age < 3600000) return `${Math.floor(age / 60000)} minutes`;
+  return `${Math.floor(age / 3600000)} hours`;
+}
+
+function snapshotAgeText() {
+  const stamp = Number(liveData.meta?.updatedAt || 0);
+  if (!stamp) return "Waiting for first snapshot";
+  const age = Math.max(0, Date.now() - stamp);
+  return `Snapshot received ${formatAge(age)} ago`;
+}
+
+function deviceIsFresh() {
+  const stamp = Number(liveData.meta?.updatedAt || 0);
+  const refreshMs = Number(liveData.meta?.refreshMs || 60000);
+  return Boolean(stamp) && Date.now() - stamp < Math.max(refreshMs * 2 + 15000, 90000);
+}
+
+function currentUserIsSignedIn() {
+  return Boolean(firebaseReady && auth?.currentUser);
+}
+
+function setDeviceStatus(id, text, tone = "off") {
+  const element = document.getElementById(id);
+  if (!element) return;
+  element.textContent = text;
+  element.className = `device-status ${tone}`;
 }
 
 function setConnection(connected, label) {
-    const dot = document.getElementById("connectionDot");
-    const text = document.getElementById("connectionStatus");
-    if (dot) dot.style.backgroundColor = connected ? "var(--success)" : "var(--danger)";
-    if (text) text.innerText = label;
+  const dot = document.getElementById("connectionDot");
+  if (dot) dot.style.backgroundColor = connected ? "var(--success)" : "var(--danger)";
+  setText("connectionStatus", label);
+  setDeviceStatus("sideConnection", connected ? "LIVE SNAPSHOT" : "NOT LIVE", connected ? "active" : "off");
+}
+
+function setCommandStatus(text, tone = "") {
+  const element = document.getElementById("commandStatus");
+  if (!element) return;
+  element.textContent = text;
+  element.className = `command-status ${tone}`.trim();
+}
+
+function syncControlAvailability() {
+  const signedIn = currentUserIsSignedIn();
+  const normalAllowed = signedIn && deviceIsFresh();
+  ["transferPumpBtn", "mixerBtn"].forEach(id => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    button.disabled = !normalAllowed;
+    button.title = normalAllowed ? "" : "Sign in and wait for a fresh ESP1 snapshot before starting a normal test.";
+  });
+
+  const boosterReview = document.getElementById("boosterReviewBtn");
+  if (boosterReview) {
+    boosterReview.disabled = !signedIn;
+    boosterReview.title = signedIn ? "" : "Sign in to use the dashboard controls.";
+  }
+
+  // Emergency stop is intentionally independent of live-data freshness and the normal cooldown.
+  const emergency = document.getElementById("emergencyStop");
+  if (emergency) {
+    emergency.disabled = !signedIn;
+    emergency.title = signedIn ? "" : "Sign in before sending an emergency-stop request.";
+  }
 }
 
 function initializeFirebase() {
-    const config = window.FIREBASE_CONFIG;
-    if (!config || !config.databaseURL || config.apiKey === "PASTE_YOUR_API_KEY") {
-        setConnection(false, "Firebase not configured");
+  const config = window.FIREBASE_CONFIG;
+  if (!config || !config.databaseURL || config.apiKey === "PASTE_YOUR_API_KEY") {
+    setConnection(false, "Firebase not configured");
+    return;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(config);
+    db = firebase.database();
+    auth = firebase.auth();
+    firebaseReady = true;
+    auth.onAuthStateChanged(user => {
+      const loginScreen = document.getElementById("loginScreen");
+      const logoutButton = document.getElementById("logoutBtn");
+      if (!user) {
+        detachDatabaseListeners();
+        liveData = {};
+        commandData = [];
+        updateDashboard();
+        renderCommandHistory();
+        if (loginScreen) loginScreen.hidden = false;
+        if (logoutButton) logoutButton.hidden = true;
+        setConnection(false, "Sign in required");
+        syncControlAvailability();
         return;
-    }
-    try {
-        if (!firebase.apps.length) firebase.initializeApp(config);
-        db = firebase.database();
-        auth = firebase.auth();
-        firebaseReady = true;
-        auth.onAuthStateChanged(user => {
-            const loginScreen = document.getElementById("loginScreen");
-            const logoutButton = document.getElementById("logoutBtn");
-            if (!user) {
-                if (loginScreen) loginScreen.hidden = false;
-                if (logoutButton) logoutButton.hidden = true;
-                setConnection(false, "Sign in required");
-                syncControlAvailability();
-                return;
-            }
-            if (loginScreen) loginScreen.hidden = true;
-            if (logoutButton) logoutButton.hidden = false;
-            attachDatabaseListeners();
-        });
-    } catch (error) {
-        console.error(error);
-        setConnection(false, "Firebase setup failed");
-    }
+      }
+      if (loginScreen) loginScreen.hidden = true;
+      if (logoutButton) logoutButton.hidden = false;
+      attachDatabaseListeners();
+      syncControlAvailability();
+    });
+  } catch (error) {
+    console.error(error);
+    setConnection(false, "Firebase setup failed");
+  }
 }
 
 function attachDatabaseListeners() {
-    if (databaseListenersAttached) return;
-    databaseListenersAttached = true;
-    setConnection(true, "Connecting to Firebase…");
-    try {
-        db.ref("irrigation/live").on("value", snapshot => {
-            liveData = snapshot.val() || {};
-            updateDashboard();
-            const fresh = deviceIsFresh();
-            setConnection(fresh, fresh ? "Live system connected" : "Waiting for ESP32 data");
-            syncControlAvailability();
-        }, error => setConnection(false, `Database error: ${error.code || "unknown"}`));
-        db.ref("irrigation/config/zones").once("value").then(snapshot => {
-            const saved = snapshot.val();
-            if (!saved) return;
-            activeZones = ["A", "B", "C"].map(id => {
-                const zone = saved[id] || {};
-                return { id, name: zone.name || `ZONE ${id}`, defaultCrop: zone.crop || "pechay", defaultStage: zone.stage || "seedling" };
-            });
-            renderZonesUI();
-            updateDashboard();
-        });
-    } catch (error) {
-        console.error(error);
-        setConnection(false, "Firebase setup failed");
-    }
+  if (databaseListenersAttached || !db) return;
+  databaseListenersAttached = true;
+  setConnection(true, "Connecting to Firebase…");
+  liveRef = db.ref("irrigation/live");
+  commandsRef = db.ref("irrigation/commands").limitToLast(25);
+
+  liveRef.on("value", snapshot => {
+    liveData = snapshot.val() || {};
+    updateDashboard();
+    const fresh = deviceIsFresh();
+    setConnection(fresh, fresh ? "Live system connected" : "Waiting for a current ESP1 snapshot");
+    syncControlAvailability();
+  }, error => setConnection(false, `Live-data error: ${error.code || "unknown"}`));
+
+  commandsRef.on("value", snapshot => {
+    const raw = snapshot.val() || {};
+    commandData = Object.entries(raw).map(([id, command]) => ({ id, ...command }));
+    renderCommandHistory();
+  }, error => setCommandStatus(`Command status unavailable: ${error.code || "unknown"}`, "error"));
+
+  db.ref("irrigation/config/zones").once("value").then(snapshot => {
+    const saved = snapshot.val();
+    if (!saved) return;
+    activeZones = ["A", "B", "C"].map(id => {
+      const zone = saved[id] || {};
+      const crop = cropDatabase[zone.crop] ? zone.crop : "pechay";
+      const stage = cropDatabase[crop][zone.stage] ? zone.stage : Object.keys(cropDatabase[crop])[0];
+      return { id, name: zone.name || `ZONE ${id}`, defaultCrop: crop, defaultStage: stage };
+    });
+    renderZonesUI();
+    updateDashboard();
+  }).catch(error => console.warn("Could not read dashboard zone profiles", error));
+}
+
+function detachDatabaseListeners() {
+  if (liveRef) liveRef.off();
+  if (commandsRef) commandsRef.off();
+  liveRef = null;
+  commandsRef = null;
+  databaseListenersAttached = false;
 }
 
 function writeZoneProfile(zone) {
-    if (!firebaseReady) return;
-    db.ref(`irrigation/config/zones/${zone.id}`).set({
-        name: zone.name, crop: zone.defaultCrop, stage: zone.defaultStage,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    }).catch(error => alert(`Could not save zone: ${error.message}`));
+  if (!currentUserIsSignedIn()) return;
+  db.ref(`irrigation/config/zones/${zone.id}`).set({
+    name: zone.name,
+    crop: zone.defaultCrop,
+    stage: zone.defaultStage,
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  }).catch(error => setCommandStatus(`Could not save dashboard-only zone profile: ${error.message}`, "error"));
 }
 
-function queueCommand(type, payload = {}) {
-    if (!firebaseReady || !auth?.currentUser) return alert("Sign in before sending a command.");
-    if (!deviceIsFresh()) return alert("ESP1 is offline or its live status is stale. No command was sent.");
+function queueCommand(type, payload = {}, options = {}) {
+  const emergency = Boolean(options.emergency);
+  if (!currentUserIsSignedIn()) {
+    setCommandStatus("Sign in before sending a command.", "error");
+    return Promise.resolve(false);
+  }
+  if (!emergency && !deviceIsFresh()) {
+    setCommandStatus("Normal command not sent: ESP1 live status is stale or offline.", "error");
+    return Promise.resolve(false);
+  }
+  if (!emergency) {
     const remaining = COMMAND_COOLDOWN_MS - (Date.now() - lastCommandAt);
-    if (remaining > 0) return alert(`Please wait ${Math.ceil(remaining / 1000)} seconds before sending another command.`);
+    if (remaining > 0) {
+      setCommandStatus(`Normal command not sent: wait ${Math.ceil(remaining / 1000)} seconds before another request.`, "error");
+      return Promise.resolve(false);
+    }
     lastCommandAt = Date.now();
-    const command = {
-        type, payload, status: "queued", source: "dashboard",
-        requestedAt: firebase.database.ServerValue.TIMESTAMP
-    };
-    return db.ref("irrigation/commands").push(command)
-        .then(() => alert(`Command queued: ${type}. The ESP32 must validate and acknowledge it before anything moves.`))
-        .catch(error => { lastCommandAt = 0; alert(`Could not queue command: ${error.message}`); });
+  }
+  const command = {
+    type,
+    payload,
+    status: "queued",
+    source: "dashboard",
+    requestedAt: firebase.database.ServerValue.TIMESTAMP
+  };
+  setCommandStatus(emergency
+    ? "Emergency stop queued. This is not physical-stop confirmation; wait for ESP1 status."
+    : `${type.replaceAll("_", " ")} queued. Waiting for ESP1 validation.`, "pending");
+  return db.ref("irrigation/commands").push(command)
+    .then(reference => {
+      if (!emergency) lastCommandAt = Date.now();
+      return reference.key;
+    })
+    .catch(error => {
+      if (!emergency) lastCommandAt = 0;
+      setCommandStatus(`Could not queue command: ${error.message}`, "error");
+      return false;
+    });
 }
 
-const loginForm = document.getElementById("loginForm");
-if (loginForm) loginForm.addEventListener("submit", async event => {
-    event.preventDefault();
-    const errorBox = document.getElementById("loginError");
-    if (!auth) { if (errorBox) errorBox.textContent = "Firebase is not configured."; return; }
-    if (errorBox) errorBox.textContent = "";
-    try {
-        await auth.signInWithEmailAndPassword(
-            document.getElementById("loginEmail").value.trim(),
-            document.getElementById("loginPassword").value
-        );
-        loginForm.reset();
-        syncControlAvailability();
-    } catch (error) {
-        if (errorBox) errorBox.textContent = "Sign-in failed. Check your email and password.";
-        console.error(error);
-    }
-});
+function renderZonesUI() {
+  const container = document.getElementById("dynamic-zones-container");
+  if (!container) return;
+  container.innerHTML = "";
+  activeZones.forEach(zone => {
+    const block = document.createElement("article");
+    block.className = "zone-block";
+    block.innerHTML = `
+      <div class="zone-header">
+        <div><p class="eyebrow">Physical zone ${zone.id}</p><h3>${escapeHtml(zone.name)}</h3></div>
+        <div class="zone-selectors">
+          <label>Crop<select id="cropSelect${zone.id}"></select></label>
+          <label>Growth stage<select id="growthStage${zone.id}"></select></label>
+        </div>
+      </div>
+      <div class="card-grid matrix-grid">
+        <article class="card matrix-card"><h3>Nitrogen</h3><p id="nitrogen${zone.id}">Unavailable</p><small id="targetN${zone.id}">Target: --</small></article>
+        <article class="card matrix-card"><h3>Phosphorus</h3><p id="phosphorus${zone.id}">Unavailable</p><small id="targetP${zone.id}">Target: --</small></article>
+        <article class="card matrix-card"><h3>Potassium</h3><p id="potassium${zone.id}">Unavailable</p><small id="targetK${zone.id}">Target: --</small></article>
+        <article class="card matrix-card"><h3>Soil pH</h3><p id="soilPH${zone.id}">Unavailable</p><small id="targetPH${zone.id}">Target: --</small></article>
+        <article class="card matrix-card"><h3>Soil EC</h3><p id="soilEC${zone.id}">Unavailable</p><small id="targetEC${zone.id}">Target: --</small></article>
+        <article class="card matrix-card"><h3>Soil moisture</h3><p id="soil${zone.id}">Unavailable</p><small id="targetMoisture${zone.id}">Target: --</small></article>
+      </div>
+      <p class="zone-note">Actuator/solenoid feedback: not reported by the current ESP1 Firebase snapshot.</p>`;
+    container.appendChild(block);
 
-const logoutButton = document.getElementById("logoutBtn");
-if (logoutButton) logoutButton.addEventListener("click", () => auth?.signOut());
-
-function value(path, fallback = null) {
-    return path.split(".").reduce((current, key) => current?.[key], liveData) ?? fallback;
+    const cropSelect = block.querySelector(`#cropSelect${zone.id}`);
+    const stageSelect = block.querySelector(`#growthStage${zone.id}`);
+    Object.keys(cropDatabase).forEach(crop => {
+      const option = new Option(readableCropNames[crop], crop, false, crop === zone.defaultCrop);
+      cropSelect.add(option);
+    });
+    populateStageOptions(zone, stageSelect);
+    cropSelect.addEventListener("change", () => {
+      zone.defaultCrop = cropSelect.value;
+      zone.defaultStage = Object.keys(cropDatabase[zone.defaultCrop])[0];
+      populateStageOptions(zone, stageSelect);
+      updateZoneTargets(zone);
+      writeZoneProfile(zone);
+    });
+    stageSelect.addEventListener("change", () => {
+      zone.defaultStage = stageSelect.value;
+      updateZoneTargets(zone);
+      writeZoneProfile(zone);
+    });
+    updateZoneTargets(zone);
+  });
 }
 
-function updateValveCardUI(valveId, isOpen) {
-    const card = document.getElementById(`valveCard-${valveId}`);
-    const badge = document.getElementById(`valveStatus-${valveId}`);
-    if(!card || !badge) return;
-
-    if(isOpen) {
-        card.classList.add('valve-open');
-        badge.innerText = "OPEN"; badge.className = "valve-badge open";
-    } else {
-        card.classList.remove('valve-open');
-        badge.innerText = "CLOSED"; badge.className = "valve-badge closed";
-    }
+function populateStageOptions(zone, stageSelect) {
+  stageSelect.innerHTML = "";
+  const stages = Object.keys(cropDatabase[zone.defaultCrop]);
+  if (!stages.includes(zone.defaultStage)) zone.defaultStage = stages[0];
+  stages.forEach(stage => stageSelect.add(new Option(stage[0].toUpperCase() + stage.slice(1), stage, false, stage === zone.defaultStage)));
 }
 
-function updateRPMGauge(displayId, barId, rpm) {
-    const display = document.getElementById(displayId);
-    const bar = document.getElementById(barId);
-    if(!display || !bar) return;
-
-    const currentRPM = Number(rpm || 0);
-    display.innerText = `${currentRPM} RPM`;
-    let percent = (currentRPM / 3600) * 100;
-    bar.style.width = `${Math.min(percent, 100)}%`;
+function updateZoneTargets(zone) {
+  const target = cropDatabase[zone.defaultCrop]?.[zone.defaultStage];
+  if (!target) return;
+  setText(`targetN${zone.id}`, `Target: ${target.n} ppm`);
+  setText(`targetP${zone.id}`, `Target: ${target.p} ppm`);
+  setText(`targetK${zone.id}`, `Target: ${target.k} ppm`);
+  setText(`targetPH${zone.id}`, `Target: ${target.ph}`);
+  setText(`targetEC${zone.id}`, `Target: ${target.ec} mS/cm`);
+  setText(`targetMoisture${zone.id}`, `Target: ${target.moisture}%`);
 }
 
-function checkNutrientDeficiency(liveValue, targetElementId, liveDisplayElementId, unitString, isFloat = false) {
-    const targetElement = document.getElementById(targetElementId);
-    const liveElement = document.getElementById(liveDisplayElementId);
-    if (!targetElement || !liveElement) return false;
-
-    if (liveValue === undefined || liveValue === null || Number.isNaN(Number(liveValue))) {
-        liveElement.innerText = "--";
-        liveElement.className = "";
-        return false;
-    }
-    const targetNum = isFloat ? parseFloat(targetElement.innerText) : parseInt(targetElement.innerText);
-    liveElement.innerText = liveValue + (unitString ? " " + unitString : "");
-
-    if (!isNaN(targetNum) && liveValue < targetNum) {
-        liveElement.className = "lacking-nutrient";
-        return true; // Deficiency discovered
-    } else {
-        liveElement.className = "";
-        return false;
-    }
+function zoneMetric(zone, metric, id, digits, unit, targetKey) {
+  const value = liveData.sensors?.zones?.[zone.id]?.[metric];
+  const element = document.getElementById(id);
+  if (!element) return;
+  if (!hasValue(value)) {
+    element.textContent = "Unavailable";
+    element.classList.remove("lacking-nutrient");
+    return;
+  }
+  element.textContent = numberText(value, digits, unit);
+  const target = cropDatabase[zone.defaultCrop]?.[zone.defaultStage]?.[targetKey];
+  element.classList.toggle("lacking-nutrient", Number.isFinite(Number(target)) && Number(value) < Number(target));
 }
 
 function updateDashboard() {
-    const system = value("system", {}), sensors = value("sensors", {}), actuators = value("actuators", {});
-    setElementText("reservoirLevel", sensors.reservoirLevel == null ? "--" : `${Number(sensors.reservoirLevel).toFixed(1)}%`);
-    setElementText("mixingLevel", sensors.mixingLevel == null ? "--" : `${Number(sensors.mixingLevel).toFixed(1)}%`);
-    setElementText("flowRate", sensors.flowRate == null ? "--" : `${Number(sensors.flowRate).toFixed(1)} L/min`);
-    setElementText("temperature", sensors.temperature == null ? "--" : `${Number(sensors.temperature).toFixed(1)}°C`);
-    setElementText("humidity", sensors.humidity == null ? "--" : `${Number(sensors.humidity).toFixed(1)}%`);
-    setElementText("lightLevel", sensors.lightLevel == null ? "--" : `${Number(sensors.lightLevel).toFixed(0)} lux`);
-    setElementText("phLevel", sensors.waterPH == null ? "--" : Number(sensors.waterPH).toFixed(2));
-    setElementText("ecLevel", sensors.waterEC == null ? "--" : `${Number(sensors.waterEC).toFixed(2)} mS/cm`);
-    setElementText("batteryLevel", sensors.batteryPercent == null ? "--" : `${Number(sensors.batteryPercent).toFixed(0)}%`);
-    setElementText("voltage", sensors.batteryVoltage == null ? "--" : `${Number(sensors.batteryVoltage).toFixed(2)} V`);
-    setElementText("powerSource", system.powerSource || "--");
-    setElementText("systemState", system.state || "OFFLINE");
-    setElementText("nutrientSystemIndicator", deviceIsFresh() ? (system.masterWorkOrderActive ? "ACTIVE" : "BALANCED") : "WAITING");
-    setElementText("sensorArrayIndicator", deviceIsFresh() ? "SAMPLING LIVE" : "WAITING");
-    setElementText("diagOnline", deviceIsFresh() ? "ONLINE" : "WAITING FOR ESP1");
-    setElementText("diagState", system.state || "--");
-    setElementText("diagTank", `Reservoir: ${sensors.reservoirLevel ?? "--"}% / Mix: ${sensors.mixingLevel ?? "--"}%`);
-    setElementText("diagAir", `Temp: ${sensors.temperature ?? "--"} C / Humidity: ${sensors.humidity ?? "--"}% / Light: ${sensors.lightLevel ?? "--"}`);
-    setElementText("diagBattery", `${sensors.batteryVoltage ?? "--"} V`);
-    setElementText("diagSoil", ["A", "B", "C"].map(id => `${id}: ${sensors.zones?.[id]?.moisture ?? "--"}%`).join(" | "));
-    const transferOn = Boolean(actuators.transferRunning), boosterOn = Boolean(actuators.boosterRunning);
-    const transferStatus = document.getElementById("transferPumpStatus"), boosterStatus = document.getElementById("boosterPumpStatus");
-    if (transferStatus) { transferStatus.className = `device-status ${transferOn ? "active" : "off"}`; transferStatus.innerText = transferOn ? "ON" : "OFF"; }
-    if (boosterStatus) { boosterStatus.className = `device-status ${boosterOn ? "active" : "off"}`; boosterStatus.innerText = boosterOn ? "ON" : "OFF"; }
-    updateRPMGauge("mixerRPM", "mixerRPMBar", actuators.mixerRPM);
-    updateRPMGauge("transferRPM", "transferRPMBar", actuators.transferRPM);
-    updateRPMGauge("boosterRPM", "boosterRPMBar", actuators.boosterRPM);
-    updateValveCardUI("V1", Boolean(actuators.valves?.V1));
-    updateValveCardUI("V2", Boolean(actuators.valves?.V2));
-    updateValveCardUI("V3", Boolean(actuators.valves?.V3));
+  const sensors = liveData.sensors || {};
+  const system = liveData.system || {};
+  const diagnostics = liveData.diagnostics || {};
+  setText("reservoirLevel", numberText(sensors.reservoirLevel, 1, "%"));
+  setText("mixingLevel", numberText(sensors.mixingLevel, 1, "%"));
+  setText("flowRate", numberText(sensors.flowRate, 1, "L/min"));
+  setText("temperature", numberText(sensors.temperature, 1, "°C"));
+  setText("humidity", numberText(sensors.humidity, 1, "%"));
+  setText("lightLevel", numberText(sensors.lightLevel, 0, "lux"));
+  setText("batteryVoltage", numberText(sensors.batteryVoltage, 2, "V"));
+  setText("batteryPower", numberText(diagnostics.power?.batteryPower, 1, "W"));
+  setText("liveAge", snapshotAgeText());
 
-    activeZones.forEach(zone => {
-        const z = sensors.zones?.[zone.id] || {};
-        const nLive = z.nitrogen; const pLive = z.phosphorus; const kLive = z.potassium;
-        const phLive = z.ph; const ecLive = z.ec; const moistLive = z.moisture;
+  const fresh = deviceIsFresh();
+  setDeviceStatus("systemState", system.state || "WAITING FOR DATA", fresh ? "active" : "off");
+  updateRunProgress(diagnostics.runProgress || {});
 
-        let nDeficit = checkNutrientDeficiency(nLive, `targetN${zone.id}`, `nitrogen${zone.id}`, "ppm");
-        let pDeficit = checkNutrientDeficiency(pLive, `targetP${zone.id}`, `phosphorus${zone.id}`, "ppm");
-        let kDeficit = checkNutrientDeficiency(kLive, `targetK${zone.id}`, `potassium${zone.id}`, "ppm");
-        let phDeficit = checkNutrientDeficiency(phLive, `targetPH${zone.id}`, `soilPH${zone.id}`, "", true);
-        let ecDeficit = checkNutrientDeficiency(ecLive, `targetEC${zone.id}`, `soilEC${zone.id}`, "mS/cm", true);
-        let mDeficit = checkNutrientDeficiency(moistLive, `targetMoisture${zone.id}`, `soil${zone.id}`, "%");
+  activeZones.forEach(zone => {
+    zoneMetric(zone, "nitrogen", `nitrogen${zone.id}`, 1, "ppm", "n");
+    zoneMetric(zone, "phosphorus", `phosphorus${zone.id}`, 1, "ppm", "p");
+    zoneMetric(zone, "potassium", `potassium${zone.id}`, 1, "ppm", "k");
+    zoneMetric(zone, "ph", `soilPH${zone.id}`, 2, "", "ph");
+    zoneMetric(zone, "ec", `soilEC${zone.id}`, 2, "mS/cm", "ec");
+    zoneMetric(zone, "moisture", `soil${zone.id}`, 0, "%", "moisture");
+  });
 
-        // Logic Mapping: If soil moisture or nutrients are low and booster is pumping, open local solenoid!
-        const solenoidIndicator = document.getElementById(`solenoidState-${zone.id}`);
-        if(solenoidIndicator) {
-            if(actuators.solenoids?.[zone.id]) {
-                solenoidIndicator.innerText = "OPEN"; solenoidIndicator.style.color = "var(--success)";
-            } else {
-                solenoidIndicator.innerText = "CLOSED"; solenoidIndicator.style.color = "var(--danger)";
-            }
-        }
-    });
-    syncControlAvailability();
+  renderDiagnostics();
+  syncControlAvailability();
 }
 
-/* ==========================================================================
-   MANUAL ACTUATOR DIAGNOSTICS & THEME CONFIGS
-   ========================================================================== */
-const themeToggleBtn = document.getElementById('theme-toggle');
-if (themeToggleBtn) {
-    const currentTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', currentTheme);
-    themeToggleBtn.textContent = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
-    themeToggleBtn.addEventListener('click', () => {
-        let theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('theme', theme);
-        themeToggleBtn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
-    });
+function updateRunProgress(run) {
+  const active = Boolean(run.active);
+  const phase = rawText(run.phase, "IDLE");
+  setDeviceStatus("sideRunState", active ? phase : "NO ACTIVE RUN", active ? "active" : "off");
+  setDeviceStatus("runStateBadge", active ? phase : "IDLE", active ? "active" : "off");
+  if (!active) {
+    setText("runSummary", "No active irrigation or fertigation run reported by ESP1.");
+    setText("runStage", "Unavailable");
+    setText("runStageProgress", "Unavailable");
+    setText("runWaterProgress", "Unavailable");
+    setText("runDoseProgress", "Unavailable");
+    return;
+  }
+  const stageOrder = hasValue(run.stageOrdinal) && hasValue(run.stageTotal) ? `Stage ${run.stageOrdinal} of ${run.stageTotal}` : "Stage order unavailable";
+  setText("runSummary", `${run.operation || "Run"} for Zone ${run.zone || "?"} — ${stageOrder}.`);
+  setText("runStage", rawText(run.stage));
+  setText("runStageProgress", hasValue(run.stageTargetLiters)
+    ? `${numberText(run.stageLiters, 1, "L")} of ${numberText(run.stageTargetLiters, 1, "L")}`
+    : stageOrder);
+  setText("runWaterProgress", hasValue(run.waterTargetLiters)
+    ? `${numberText(run.waterDeliveredLiters, 1, "L")} of ${numberText(run.waterTargetLiters, 1, "L")}`
+    : "Unavailable");
+  const doses = run.dosesMl || {};
+  const doseText = ["A", "B", "C"].filter(key => hasValue(doses[key]?.target) || hasValue(doses[key]?.delivered))
+    .map(key => `${key}: ${numberText(doses[key]?.delivered, 1, "mL")} / ${numberText(doses[key]?.target, 1, "mL")}`).join(" · ");
+  setText("runDoseProgress", doseText || "Unavailable");
 }
 
-function toggleDeviceState(elementId, pumpKey) {
-    queueCommand("RUN_PUMP_TEST", { pump: pumpKey });
+function diagnosticGroup(title, rows) {
+  const card = document.createElement("article");
+  card.className = "diagnostic-card";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  card.appendChild(heading);
+  const list = document.createElement("dl");
+  rows.forEach(([label, value]) => {
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = rawText(value);
+    list.append(term, description);
+  });
+  card.appendChild(list);
+  return card;
 }
 
-if (document.getElementById("transferPumpBtn")) document.getElementById("transferPumpBtn").addEventListener("click", () => toggleDeviceState("transferPumpStatus", "transfer"));
-if (document.getElementById("boosterPumpBtn")) document.getElementById("boosterPumpBtn").addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "booster", zone: document.getElementById("boosterZone").value }));
-if (document.getElementById("mixerBtn")) document.getElementById("mixerBtn").addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "mixer" }));
+function renderDiagnostics() {
+  const container = document.getElementById("diagnosticsGrid");
+  if (!container) return;
+  const d = liveData.diagnostics || {};
+  container.innerHTML = "";
+  const current = deviceIsFresh();
+  const diagnosticsAvailable = Object.keys(d).length > 0;
+  const groups = [
+    ["Live snapshot", [["Snapshot", current ? "Current" : "Stale or unavailable"], ["Received", snapshotAgeText()], ["ESP1 state", liveData.system?.state || "Unavailable"]]],
+    ["Network", [["Wi-Fi enabled", booleanText(d.network?.wifiEnabled, "Enabled", "Disabled")], ["Wi-Fi link", booleanText(d.network?.wifiConnected, "Connected", "Disconnected")], ["Wi-Fi RSSI", hasValue(d.network?.wifiRssi) ? `${d.network.wifiRssi} dBm` : "Unavailable"]]],
+    ["Firebase", [["Enabled", booleanText(d.firebase?.enabled, "Enabled", "Disabled")], ["RTDB URL", booleanText(d.firebase?.urlConfigured, "Configured", "Not configured")], ["Device account", booleanText(d.firebase?.deviceCredentialsConfigured, "Configured", "Not configured")], ["Signed in", booleanText(d.firebase?.signedIn, "Yes", "No")], ["Last upload", Number(d.firebase?.attempts || 0) > 0 ? booleanText(d.firebase?.lastUploadOk, "OK", "Failed") : "Not attempted"], ["Last HTTP", Number(d.firebase?.attempts || 0) > 0 ? rawText(d.firebase?.lastHttp) : "Not attempted"], ["TLS validation", booleanText(d.firebase?.tlsValidationEnabled, "Enabled", "Disabled")], ["Last auth issue", rawText(d.firebase?.lastAuthError)]]],
+    ["ThingSpeak", [["Configured", booleanText(d.thingspeak?.configured, "Configured", "Not configured")], ["Last upload", d.thingspeak?.attempted ? booleanText(d.thingspeak?.lastUploadOk, "OK", "Failed") : "Not attempted"]]],
+    ["Supabase logs", [["Configured", booleanText(d.supabase?.configured, "Configured", "Not configured")], ["Upload", booleanText(d.supabase?.uploadBusy, "In progress", "Idle")], ["Last HTTP", d.supabase?.lastUploadAttempted ? rawText(d.supabase?.lastHttp) : "Not attempted"], ["Last uploaded day", Number(d.supabase?.lastUploadedDay || 0) > 0 ? rawText(d.supabase?.lastUploadedDay) : "No completed upload"]]],
+    ["System", [["Work order", booleanText(d.system?.workOrderActive, "Active", "Inactive")], ["Pending run", booleanText(d.system?.pendingRun, "Yes", "No")], ["Last fault", rawText(d.system?.lastFault)], ["Fault time", rawText(d.system?.lastFaultTime)]]],
+    ["ESP2", [["Available", booleanText(d.esp2?.available, "Available", "Unavailable")], ["Power", booleanText(d.esp2?.powered, "On", "Off")], ["Communication", booleanText(d.esp2?.communicationLost, "Lost", "OK")], ["Last response age", formatAge(d.esp2?.lastResponseAgeMs)]]],
+    ["Nano & sensors", [["Last sample age", formatAge(d.nano?.lastSampleAgeMs)], ["Environment", booleanText(d.nano?.environmentValid, "Valid", "Invalid")], ["Tank", booleanText(d.nano?.tankValid, "Valid", "Invalid")], ["Light", booleanText(d.nano?.lightValid, "Valid", "Invalid")]]],
+    ["RTC / SD", [["RTC", booleanText(d.peripherals?.rtcOk, "OK", "Not OK")], ["SD card", booleanText(d.peripherals?.sdOk, "OK", "Not OK")], ["Battery sensor", booleanText(d.peripherals?.batterySensorOk, "OK", "Not OK")]]],
+    ["GSM", [["SIM", booleanText(d.gsm?.simReady, "Ready", "Not ready")], ["Network", booleanText(d.gsm?.networkRegistered, "Registered", "Not registered")], ["RSSI", hasValue(d.gsm?.rssi) ? String(d.gsm.rssi) : "Unavailable"], ["CREG", rawText(d.gsm?.creg)], ["Last health age", formatAge(d.gsm?.lastHealthAgeMs)]]],
+    ["Power", [["Battery low", booleanText(d.power?.batteryLow, "Yes", "No")], ["Battery critical", booleanText(d.power?.batteryCritical, "Yes", "No")], ["Calibration", booleanText(d.power?.calibrationLoaded, "Loaded", "Firmware default")], ["Current", numberText(d.power?.batteryCurrent, 2, "A")], ["Power", numberText(d.power?.batteryPower, 1, "W")]]],
+    ["Actuator status", [["Relay feedback", d.actuator?.relayFeedback === "notReported" ? "Not reported by ESP1" : rawText(d.actuator?.relayFeedback)], ["Work order", booleanText(d.actuator?.workOrderActive, "Active", "Inactive")], ["Pump test", booleanText(d.actuator?.pumpTestActive, "Active", "Inactive")], ["Pump under test", rawText(d.actuator?.pumpUnderTest)]]]
+  ];
+  if (!diagnosticsAvailable) {
+    const message = document.createElement("p");
+    message.className = "muted";
+    message.textContent = "No diagnostics have been published by ESP1 yet. Upload the current ESP1 firmware, then wait for its next Firebase snapshot.";
+    container.appendChild(message);
+  } else {
+    groups.forEach(([title, rows]) => container.appendChild(diagnosticGroup(title, rows)));
+  }
 
-document.querySelectorAll(".valveRequest").forEach(button => button.addEventListener("click", () => {
-    queueCommand("MANUAL_VALVE_REQUEST", { zone: button.dataset.zone });
-}));
+  const eventBox = document.getElementById("diagnosticEvents");
+  if (!eventBox) return;
+  eventBox.innerHTML = "";
+  const events = Array.isArray(d.recentEvents) ? d.recentEvents : [];
+  if (!events.length) {
+    eventBox.innerHTML = '<p class="muted">No event data reported yet.</p>';
+    return;
+  }
+  events.slice().reverse().forEach(event => {
+    const row = document.createElement("article");
+    row.className = `event-row ${String(event.type || "").toLowerCase()}`;
+    const meta = document.createElement("strong");
+    const detail = document.createElement("span");
+    meta.textContent = `${rawText(event.at, "time unavailable")} · ${rawText(event.source)} · ${rawText(event.type)}`;
+    detail.textContent = rawText(event.detail);
+    row.append(meta, detail);
+    eventBox.appendChild(row);
+  });
+}
 
-const forcedRunForm = document.getElementById("forcedRunForm");
-if (forcedRunForm) forcedRunForm.addEventListener("submit", event => {
-    event.preventDefault();
-    const liters = Number(document.getElementById("waterLiters").value);
-    const seconds = Number(document.getElementById("runSeconds").value);
-    if (!(liters > 0 && liters <= 50) || !(seconds > 0 && seconds <= 7200)) return alert("Water must be 0.1–50 L and run duration must be 1–7200 seconds.");
-    queueCommand(document.getElementById("forcedType").value, {
-        zones: document.getElementById("forcedZones").value, waterLiters: liters,
-        nutrientsMl: { a: Number(document.getElementById("nutrientA").value), b: Number(document.getElementById("nutrientB").value), c: Number(document.getElementById("nutrientC").value) },
-        mixSeconds: Number(document.getElementById("mixSeconds").value), runSeconds: seconds
-    });
+function commandStatusTone(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "completed") return "completed";
+  if (["failed", "rejected"].includes(normalized)) return "error";
+  if (["accepted", "queued"].includes(normalized)) return "pending";
+  return "";
+}
+
+function formatTimestamp(timestamp) {
+  const value = Number(timestamp);
+  if (!value) return "Time pending";
+  return new Date(value).toLocaleString();
+}
+
+function renderCommandHistory() {
+  const container = document.getElementById("commandHistory");
+  if (!container) return;
+  container.innerHTML = "";
+  const commands = commandData.slice().sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0));
+  if (!commands.length) {
+    container.innerHTML = '<p class="muted">No command history received yet.</p>';
+    return;
+  }
+  commands.slice(0, 8).forEach(command => {
+    const row = document.createElement("article");
+    row.className = "command-row";
+    const top = document.createElement("div");
+    const name = document.createElement("strong");
+    const badge = document.createElement("span");
+    name.textContent = rawText(command.type, "Unknown command").replaceAll("_", " ");
+    badge.className = `command-badge ${commandStatusTone(command.status)}`;
+    badge.textContent = rawText(command.status, "unknown");
+    top.append(name, badge);
+    const detail = document.createElement("p");
+    detail.textContent = `${formatTimestamp(command.requestedAt)} — ${rawText(command.detail, "Awaiting ESP1 status")}`;
+    row.append(top, detail);
+    container.appendChild(row);
+  });
+}
+
+function reviewBoosterTest() {
+  const zone = document.getElementById("boosterZone")?.value || "";
+  const result = document.getElementById("boosterResult");
+  if (!result) return;
+  if (!zone) {
+    result.textContent = "Select Zone A, B, or C first. No command was sent.";
+    result.className = "control-result error";
+    return;
+  }
+  result.textContent = `Zone ${zone} selected. Unsupported: ESP1 cannot receive a remote booster destination or solenoid command. No command was created or sent; firmware/wiring support is required.`;
+  result.className = "control-result error";
+}
+
+function positiveNumber(formData, fieldName, allowZero = false) {
+  const number = Number(formData.get(fieldName));
+  return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) ? number : null;
+}
+
+function reviewForcedRun(event, type) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const result = document.getElementById(type === "irrigation" ? "forcedIrrigationResult" : "forcedFertigationResult");
+  const data = new FormData(form);
+  const zone = String(data.get("zone") || "");
+  const water = positiveNumber(data, "waterLiters");
+  const duration = positiveNumber(data, "runSeconds");
+  if (!["A", "B", "C"].includes(zone) || water === null || duration === null) {
+    result.textContent = "Review blocked: choose one physical zone and enter a positive water amount and duration. No command was sent.";
+    result.className = "control-result error";
+    return;
+  }
+  if (type === "fertigation") {
+    const nutrients = ["nutrientA", "nutrientB", "nutrientC"].map(field => positiveNumber(data, field, true));
+    const mixing = positiveNumber(data, "mixSeconds", true);
+    if (nutrients.includes(null) || mixing === null) {
+      result.textContent = "Review blocked: nutrient and mixing values must be zero or greater. No command was sent.";
+      result.className = "control-result error";
+      return;
+    }
+    result.textContent = `Review: fertigation for Zone ${zone}; ${water} L; nutrients A/B/C ${nutrients.join("/")} mL; mix ${mixing}s; run ${duration}s. Unsupported by current ESP1 Firebase command contract—no command was created or sent.`;
+  } else {
+    result.textContent = `Review: irrigation for Zone ${zone}; ${water} L; run ${duration}s. Unsupported by current ESP1 Firebase command contract—no command was created or sent.`;
+  }
+  result.className = "control-result error";
+}
+
+const loginForm = document.getElementById("loginForm");
+loginForm?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const errorBox = document.getElementById("loginError");
+  if (!auth) {
+    if (errorBox) errorBox.textContent = "Firebase is not configured.";
+    return;
+  }
+  if (errorBox) errorBox.textContent = "";
+  try {
+    await auth.signInWithEmailAndPassword(document.getElementById("loginEmail").value.trim(), document.getElementById("loginPassword").value);
+    loginForm.reset();
+  } catch (error) {
+    if (errorBox) errorBox.textContent = "Sign-in failed. Check your email and password.";
+    console.error(error);
+  }
 });
 
-if (document.getElementById("emergencyStop")) {
-    document.getElementById("emergencyStop").addEventListener("click", () => {
-        if (confirm("Queue an emergency stop? The ESP32 will still validate and execute the physical stop.")) queueCommand("EMERGENCY_STOP");
-    });
-}
+document.getElementById("logoutBtn")?.addEventListener("click", () => auth?.signOut());
+document.getElementById("transferPumpBtn")?.addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "transfer" }));
+document.getElementById("mixerBtn")?.addEventListener("click", () => queueCommand("RUN_PUMP_TEST", { pump: "mixer" }));
+document.getElementById("boosterReviewBtn")?.addEventListener("click", reviewBoosterTest);
+document.getElementById("emergencyStop")?.addEventListener("click", () => queueCommand("EMERGENCY_STOP", {}, { emergency: true }));
+document.getElementById("forcedIrrigationForm")?.addEventListener("submit", event => reviewForcedRun(event, "irrigation"));
+document.getElementById("forcedFertigationForm")?.addEventListener("submit", event => reviewForcedRun(event, "fertigation"));
 
 document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active", item === tab));
-    document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === tab.dataset.view));
+  document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active", item === tab));
+  document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === tab.dataset.view));
 }));
+
+const themeToggle = document.getElementById("theme-toggle");
+const savedTheme = localStorage.getItem("theme") || "dark";
+document.documentElement.dataset.theme = savedTheme;
+function refreshThemeButton() { if (themeToggle) themeToggle.textContent = document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme"; }
+refreshThemeButton();
+themeToggle?.addEventListener("click", () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("theme", document.documentElement.dataset.theme);
+  refreshThemeButton();
+});
+
 const contributorsDialog = document.getElementById("contributorsDialog");
-document.getElementById("contributorsBtn")?.addEventListener("click", () => contributorsDialog.showModal());
+document.getElementById("contributorsBtn")?.addEventListener("click", () => contributorsDialog?.showModal());
 contributorsDialog?.querySelector(".closeDialog")?.addEventListener("click", () => contributorsDialog.close());
 
-// Initialization Hooks
 renderZonesUI();
 updateDashboard();
+renderCommandHistory();
 syncControlAvailability();
 initializeFirebase();

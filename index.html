@@ -1,15 +1,205 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CIT-U EE Drip Irrigation</title><link rel="stylesheet" href="style.css"></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Authenticated monitoring and safe remote command dashboard for the CIT-U EE smart irrigation master controller.">
+  <title>CIT-U EE Smart Irrigation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
-  <div id="loginScreen" class="login-screen"><form id="loginForm" class="login-card"><h1>CIT-U EE Drip Irrigation</h1><p>Sign in to access the irrigation dashboard.</p><label>Email<input id="loginEmail" type="email" autocomplete="email" required></label><label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label><p id="loginError" class="login-error"></p><button type="submit">Sign in</button></form></div>
-  <aside class="sidebar"><h2>CIT-U EE<br>Drip Irrigation</h2><nav class="tabs" aria-label="Dashboard sections"><button class="tab active" data-view="dashboard">System Dashboard</button><button class="tab" data-view="zones">Zone Management</button><button class="tab" data-view="manual">Manual Actuator Testing</button><button class="tab" data-view="diagnostics">Diagnostics Panel</button></nav><div class="system-status"><h3>System State</h3><span id="systemState" class="device-status off">WAITING</span><h3>Nutrient Feed Loop</h3><span id="nutrientSystemIndicator" class="device-status off">WAITING</span><h3>Sensor Array Link</h3><span id="sensorArrayIndicator" class="device-status off">WAITING</span></div><button id="contributorsBtn" class="link-button">Contributors & project</button></aside>
-  <main class="main-content"><header class="topbar"><h1>Pinamungahan Automated FarmD</h1><div><button id="theme-toggle">Light</button><button id="logoutBtn" hidden>Sign out</button><span class="connection-status"><i id="connectionDot" class="online-dot"></i><span id="connectionStatus">Firebase not configured</span></span></div></header>
-    <section class="view active" id="dashboard"><h2>Live Farm Status</h2><div class="card-grid"><div class="card"><h3>Reservoir Level</h3><p id="reservoirLevel">--</p></div><div class="card"><h3>Mixing Tank Level</h3><p id="mixingLevel">--</p></div><div class="card"><h3>System Flow Rate</h3><p id="flowRate">--</p></div><div class="card"><h3>Air Temperature</h3><p id="temperature">--</p></div><div class="card"><h3>Ambient Humidity</h3><p id="humidity">--</p></div><div class="card"><h3>Light Level</h3><p id="lightLevel">--</p></div><div class="card"><h3>Water pH</h3><p id="phLevel">--</p></div><div class="card"><h3>Water EC</h3><p id="ecLevel">--</p></div><div class="card"><h3>Battery</h3><p id="batteryLevel">--</p></div><div class="card"><h3>Bus Voltage</h3><p id="voltage">--</p></div></div></section>
-    <section class="view" id="zones"><h2>Three Physical Zone Mappings</h2><p class="hint">Each profile stays attached to its physical sensor and valve: A, B, or C. Rename the crop profile; do not create a fourth zone.</p><div id="dynamic-zones-container"></div></section>
-    <section class="view" id="manual"><h2>Manual Actuator Testing</h2><p class="hint">All requests have a 10-second click lock and must be accepted by ESP1. The present ESP1 firmware only permits five-second pump tests and emergency stop.</p><div class="control-grid"><button id="transferPumpBtn">Test Transfer Pump (5 sec)</button><label>Booster destination<select id="boosterZone"><option value="A">Zone A</option><option value="B">Zone B</option><option value="C">Zone C</option></select></label><button id="boosterPumpBtn">Test Booster Pump (5 sec)</button><button id="mixerBtn">Test Tank Mixer (5 sec)</button></div><h3>Distribution valve request</h3><div class="control-grid"><button class="valveRequest" data-zone="A">Valve A</button><button class="valveRequest" data-zone="B">Valve B</button><button class="valveRequest" data-zone="C">Valve C</button></div><h3>Forced irrigation / fertigation request</h3><form id="forcedRunForm" class="form-grid"><label>Operation<select id="forcedType"><option value="FORCE_IRRIGATION">Irrigation</option><option value="FORCE_FERTIGATION">Fertigation</option></select></label><label>Destination<select id="forcedZones"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="AB">A + B</option></select></label><label>Water from reservoir to mix tank (L)<input id="waterLiters" type="number" min="0.1" max="50" step="0.1" required></label><label>Nutrient A (mL)<input id="nutrientA" type="number" min="0" max="5000" step="1" value="0"></label><label>Nutrient B (mL)<input id="nutrientB" type="number" min="0" max="5000" step="1" value="0"></label><label>Nutrient C (mL)<input id="nutrientC" type="number" min="0" max="5000" step="1" value="0"></label><label>Mix duration (seconds)<input id="mixSeconds" type="number" min="0" max="3600" step="1" value="0"></label><label>Run duration (seconds)<input id="runSeconds" type="number" min="1" max="7200" step="1" required></label><button type="submit">Queue forced run</button></form><button id="emergencyStop" class="danger">Emergency System Stop</button></section>
-    <section class="view" id="diagnostics"><h2>ESP1 Sensor Diagnostics</h2><p class="hint">Live readings from ESP1’s verified telemetry snapshot. A dash means ESP1 has not reported that sensor.</p><div class="card-grid"><div class="card"><h3>ESP1 link</h3><p id="diagOnline">--</p></div><div class="card"><h3>Controller state</h3><p id="diagState">--</p></div><div class="card"><h3>Reservoir / mixing</h3><p id="diagTank">--</p></div><div class="card"><h3>Air sensors</h3><p id="diagAir">--</p></div><div class="card"><h3>Battery</h3><p id="diagBattery">--</p></div><div class="card"><h3>Zone A / B / C soil</h3><p id="diagSoil">--</p></div></div></section>
+  <div id="loginScreen" class="login-screen">
+    <form id="loginForm" class="login-card">
+      <p class="eyebrow">CIT-U Electrical Engineering</p>
+      <h1>Smart Irrigation</h1>
+      <p>Sign in with an authorized Firebase account to monitor the ESP1 master controller and use the available safe commands.</p>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
+      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <p id="loginError" class="login-error" role="alert"></p>
+      <button type="submit">Sign in</button>
+    </form>
+  </div>
+
+  <aside class="sidebar">
+    <div>
+      <p class="eyebrow">CIT-U EE</p>
+      <h2>Smart<br>Irrigation</h2>
+    </div>
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button class="tab active" data-view="dashboard">Live dashboard</button>
+      <button class="tab" data-view="zones">Zone profiles</button>
+      <button class="tab" data-view="manual">Controls</button>
+      <button class="tab" data-view="diagnostics">Diagnostics</button>
+    </nav>
+    <div class="system-status" aria-live="polite">
+      <p class="status-label">ESP1 state</p>
+      <span id="systemState" class="device-status off">WAITING FOR DATA</span>
+      <p class="status-label">ESP1 connection</p>
+      <span id="sideConnection" class="device-status off">NOT CONNECTED</span>
+      <p class="status-label">Run state</p>
+      <span id="sideRunState" class="device-status off">NO ACTIVE RUN</span>
+    </div>
+    <button id="contributorsBtn" class="link-button">Contributors &amp; project</button>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Pinamungahan Automated FarmD</p>
+        <h1>ESP1 live operations</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="connection-status"><i id="connectionDot" class="online-dot"></i><span id="connectionStatus">Firebase not configured</span></span>
+        <button id="theme-toggle" type="button">Light theme</button>
+        <button id="logoutBtn" type="button" hidden>Sign out</button>
+      </div>
+    </header>
+
+    <section class="view active" id="dashboard">
+      <div class="section-heading">
+        <div>
+          <h2>Live farm status</h2>
+          <p class="hint">Values come from ESP1’s verified Firebase snapshot. A value is shown as unavailable when ESP1 does not report it.</p>
+        </div>
+        <div id="liveAge" class="snapshot-age">Waiting for first snapshot</div>
+      </div>
+      <div class="card-grid metric-grid">
+        <article class="card"><h3>Reservoir level</h3><p id="reservoirLevel">Unavailable</p></article>
+        <article class="card"><h3>Mixing tank level</h3><p id="mixingLevel">Unavailable</p></article>
+        <article class="card"><h3>System flow</h3><p id="flowRate">Unavailable</p></article>
+        <article class="card"><h3>Air temperature</h3><p id="temperature">Unavailable</p></article>
+        <article class="card"><h3>Ambient humidity</h3><p id="humidity">Unavailable</p></article>
+        <article class="card"><h3>Light level</h3><p id="lightLevel">Unavailable</p></article>
+        <article class="card"><h3>Battery voltage</h3><p id="batteryVoltage">Unavailable</p></article>
+        <article class="card"><h3>Battery power</h3><p id="batteryPower">Unavailable</p></article>
+      </div>
+
+      <article class="panel run-panel">
+        <div class="panel-heading"><div><h3>Run progress</h3><p id="runSummary">No active irrigation or fertigation run reported by ESP1.</p></div><span id="runStateBadge" class="device-status off">IDLE</span></div>
+        <div class="progress-layout">
+          <div><span class="status-label">Current stage</span><strong id="runStage">Unavailable</strong></div>
+          <div><span class="status-label">Stage progress</span><strong id="runStageProgress">Unavailable</strong></div>
+          <div><span class="status-label">Water delivered</span><strong id="runWaterProgress">Unavailable</strong></div>
+          <div><span class="status-label">Nutrient delivery</span><strong id="runDoseProgress">Unavailable</strong></div>
+        </div>
+      </article>
+
+      <article class="panel command-panel">
+        <div class="panel-heading"><div><h3>Command status</h3><p>Only ESP1 statuses such as accepted, completed, failed, or rejected confirm command handling.</p></div></div>
+        <p id="commandStatus" class="command-status" aria-live="polite">No dashboard command has been sent in this session.</p>
+        <div id="commandHistory" class="command-history"><p class="muted">No command history received yet.</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="zones">
+      <h2>Three physical zone profiles</h2>
+      <p class="hint">A, B, and C remain the physical ESP1 zone identifiers. Crop profiles are dashboard planning notes only: the current ESP1 firmware does not read them to start or change an irrigation run.</p>
+      <div id="dynamic-zones-container"></div>
+    </section>
+
+    <section class="view" id="manual">
+      <h2>Safe remote controls</h2>
+      <p class="hint">The existing ESP1 firmware accepts only 5-second transfer/mixer tests and emergency stop from Firebase. ESP1 validates every request before it affects ESP2.</p>
+      <div class="control-grid">
+        <article class="control-card">
+          <h3>Transfer pump test</h3>
+          <p>Existing ESP1 safe exercise: 5 seconds.</p>
+          <button id="transferPumpBtn" type="button">Start transfer test</button>
+        </article>
+        <article class="control-card">
+          <h3>Tank mixer test</h3>
+          <p>Existing ESP1 safe exercise: 5 seconds. This dashboard does not change inverter settings.</p>
+          <button id="mixerBtn" type="button">Start mixer test</button>
+        </article>
+        <article class="control-card unavailable-control">
+          <h3>Booster test by destination</h3>
+          <label>Required destination
+            <select id="boosterZone">
+              <option value="">Select Zone A, B, or C</option>
+              <option value="A">Zone A</option>
+              <option value="B">Zone B</option>
+              <option value="C">Zone C</option>
+            </select>
+          </label>
+          <button id="boosterReviewBtn" type="button">Review booster test</button>
+          <p id="boosterResult" class="control-result">ESP1’s current remote command contract has no destination or solenoid field. No booster command will be sent until firmware support exists.</p>
+        </article>
+      </div>
+
+      <article class="emergency-panel">
+        <div><h3>Emergency system stop</h3><p>Immediately queues an ESP1 emergency-stop request. It is never blocked by the normal 10-second cooldown or by stale live telemetry. “Queued” is not physical-stop confirmation; wait for ESP1’s command status.</p></div>
+        <button id="emergencyStop" class="danger" type="button">Emergency stop now</button>
+      </article>
+
+      <section class="unsupported-section">
+        <h3>Forced irrigation / fertigation review</h3>
+        <p class="hint">These forms validate a request and show a review only. The current ESP1 code has no remote forced-run command schema, so these actions are deliberately not sent to Firebase.</p>
+        <div class="forced-grid">
+          <form id="forcedIrrigationForm" class="form-card">
+            <h4>Forced irrigation</h4>
+            <label>Destination
+              <select name="zone" required>
+                <option value="">Select one zone</option>
+                <option value="A">Zone A</option><option value="B">Zone B</option><option value="C">Zone C</option>
+                <option value="AB" disabled>A + B — not supported by current ESP1 work order</option>
+              </select>
+            </label>
+            <label>Water amount (L)<input name="waterLiters" type="number" min="0.01" step="0.01" required></label>
+            <label>Run duration (seconds)<input name="runSeconds" type="number" min="1" step="1" required></label>
+            <p class="field-note">Reservoir capacity is not exposed by ESP1, so no capacity calculation is guessed.</p>
+            <button type="submit">Validate and review</button>
+            <p id="forcedIrrigationResult" class="control-result" aria-live="polite"></p>
+          </form>
+          <form id="forcedFertigationForm" class="form-card">
+            <h4>Forced fertigation</h4>
+            <label>Destination
+              <select name="zone" required>
+                <option value="">Select one zone</option>
+                <option value="A">Zone A</option><option value="B">Zone B</option><option value="C">Zone C</option>
+                <option value="AB" disabled>A + B — not supported by current ESP1 work order</option>
+              </select>
+            </label>
+            <label>Water amount (L)<input name="waterLiters" type="number" min="0.01" step="0.01" required></label>
+            <label>Nutrient A (mL)<input name="nutrientA" type="number" min="0" step="0.01" value="0" required></label>
+            <label>Nutrient B (mL)<input name="nutrientB" type="number" min="0" step="0.01" value="0" required></label>
+            <label>Nutrient C (mL)<input name="nutrientC" type="number" min="0" step="0.01" value="0" required></label>
+            <label>Mix duration (seconds)<input name="mixSeconds" type="number" min="0" step="1" value="0" required></label>
+            <label>Run duration (seconds)<input name="runSeconds" type="number" min="1" step="1" required></label>
+            <p class="field-note">Inputs are not submitted because ESP1 exposes no safe forced-fertigation Firebase command path.</p>
+            <button type="submit">Validate and review</button>
+            <p id="forcedFertigationResult" class="control-result" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <article class="panel limitation-panel">
+        <h3>Distribution valves / solenoids</h3>
+        <p>The dashboard does not offer Valve A, B, or C buttons. The current ESP1 Firebase contract has no remote solenoid command or feedback, so showing manual valve controls would be misleading. Hardware/firmware support is required before those controls can exist.</p>
+      </article>
+    </section>
+
+    <section class="view" id="diagnostics">
+      <div class="section-heading"><div><h2>ESP1 diagnostics</h2><p class="hint">Actual diagnostics published by ESP1. Credentials, tokens, keys, and private service values are never displayed.</p></div></div>
+      <div id="diagnosticsGrid" class="diagnostics-grid"><p class="muted">Waiting for an ESP1 diagnostics snapshot.</p></div>
+      <article class="panel event-panel">
+        <div class="panel-heading"><div><h3>Recent ESP1 events</h3><p>Short, sanitized operational events mirrored from ESP1’s local log buffer.</p></div></div>
+        <div id="diagnosticEvents" class="event-list"><p class="muted">No event data reported yet.</p></div>
+      </article>
+    </section>
   </main>
-  <dialog id="contributorsDialog"><button class="closeDialog">Close</button><h2>Research project contributors</h2><p>CIT-U EE Drip Irrigation / Pinamungahan Automated FarmD</p><ul><li>Christian Jay A. Tibon</li><li>Mark Bon Q. Compuesto</li><li>Johnbert Kyle T. Nacor</li><li>John Michael N. Sugian</li><li>John Ray C. Lagamayo</li><li>John Christopher S. Cabrillos</li></ul><p><a href="https://github.com/JKyle-N/Smart-Irrigation" target="_blank" rel="noreferrer">View the Smart Irrigation project on GitHub</a></p></dialog>
-  <script src="firebase-config.js"></script><script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-database-compat.js"></script><script src="script.js"></script>
-</body></html>
+
+  <dialog id="contributorsDialog">
+    <button class="closeDialog" type="button">Close</button>
+    <h2>Research project contributors</h2>
+    <p>CIT-U EE Smart Irrigation / Pinamungahan Automated FarmD</p>
+    <ul><li>Christian Jay A. Tibon</li><li>Mark Bon Q. Compuesto</li><li>Johnbert Kyle T. Nacor</li><li>John Michael N. Sugian</li><li>John Ray C. Lagamayo</li><li>John Christopher S. Cabrillos</li></ul>
+    <p><a href="https://github.com/JKyle-N/Smart-Irrigation" target="_blank" rel="noreferrer">View the Smart Irrigation project on GitHub</a></p>
+  </dialog>
+
+  <script src="firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-database-compat.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
